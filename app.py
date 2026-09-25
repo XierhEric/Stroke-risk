@@ -19,7 +19,7 @@ st.sidebar.image("https://cdn-icons-png.flaticon.com/512/2966/2966327.png", widt
 st.sidebar.header("📋 病患生理數據輸入")
 st.sidebar.markdown("請設定下方參數進行風險模擬：")
 
-age = st.sidebar.slider("年齡 (Age)", min_value=0, max_value=120, value=60)
+age = st.sidebar.number_input("年齡 (Age)", min_value=0, max_value=120, value=60, step=1)
 bmi = st.sidebar.number_input("身體質量指數 (BMI)", min_value=10.0, max_value=60.0, value=25.0)
 glucose = st.sidebar.number_input("平均血糖 (Avg Glucose Level)", min_value=50.0, max_value=300.0, value=100.0)
 hypertension = st.sidebar.selectbox("是否有高血壓?", options=[0, 1], format_func=lambda x: "是" if x == 1 else "否")
