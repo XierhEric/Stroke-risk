@@ -101,23 +101,37 @@ with tab2:
         run_button = st.button("執行風險分級與醫療資源派單", type="primary", use_container_width=True, on_click=collapse_form)
 
     if run_button:
-        input_data = pd.DataFrame({
-            'age': [age],
-            'hypertension': [hypertension],
-            'heart_disease': [heart_disease],
-            'avg_glucose_level': [avg_glucose_level],
-            'bmi': [bmi]
-        })
+        # 1. 抓出模型當初訓練時「真正」記住的特徵名稱與順序
+        expected_features = model.feature_names_in_
         
-        probability = model.predict_proba(input_data)[0][1]
+        # 2. 建立一個包含各種大小寫變體的「翻譯字典」，確保絕對配對得上
+        raw_data = {
+            'age': age, 'Age': age, 'AGE': age,
+            'hypertension': hypertension, 'Hypertension': hypertension,
+            'heart_disease': heart_disease, 'Heart_Disease': heart_disease, 'heartdisease': heart_disease,
+            'avg_glucose_level': avg_glucose_level, 'Avg_Glucose_Level': avg_glucose_level, 'avg_glucose': avg_glucose_level,
+            'bmi': bmi, 'BMI': bmi, 'Bmi': bmi
+        }
         
-        st.subheader("📊 風險分流與資源派單結果")
-        st.metric(label="腦中風風險機率指標", value=f"{probability * 100:.1f}%")
-        st.progress(float(probability))
-        
-        if probability >= 0.75:
-            st.error("🔴 **分流等級：【紅燈 — 高危急需介入群】**\n\n**資源調度行動**：已自動排入「個管師本週優先電訪名單」，建議立即安排神經內科或心臟內科門診轉介。")
-        elif probability >= 0.50:
-            st.warning("🟡 **分流等級：【黃燈 — 亞健康數位衛教群】**\n\n**資源調度行動**：不消耗人工電訪時數；已由系統自動派發「三高控制與減鈉飲食 LINE 數位衛教方案」，提醒定期居家量測血壓。")
-        else:
-            st.success("🟢 **分流等級：【綠燈 — 低風險常規群（99% 陰性預測把握度）】**\n\n**資源調度行動**：僅發送年度常規健檢報告，無需投入額外醫護追蹤人力。")
+        try:
+            # 3. 依照模型期望的順序，精準挑出對應的數值並組裝 DataFrame
+            aligned_values = [raw_data[feat] for feat in expected_features]
+            input_data = pd.DataFrame([aligned_values], columns=expected_features)
+            
+            # 執行預測
+            probability = model.predict_proba(input_data)[0][1]
+            
+            st.subheader("📊 風險分流與資源派單結果")
+            st.metric(label="腦中風風險機率指標", value=f"{probability * 100:.1f}%")
+            st.progress(float(probability))
+            
+            if probability >= 0.75:
+                st.error("🔴 **分流等級：【紅燈 — 高危急需介入群】**\n\n**資源調度行動**：已自動排入「個管師本週優先電訪名單」，建議立即安排神經內科或心臟內科門診轉介。")
+            elif probability >= 0.50:
+                st.warning("🟡 **分流等級：【黃燈 — 亞健康數位衛教群】**\n\n**資源調度行動**：不消耗人工電訪時數；已由系統自動派發「三高控制與減鈉飲食 LINE 數位衛教方案」，提醒定期居家量測血壓。")
+            else:
+                st.success("🟢 **分流等級：【綠燈 — 低風險常規群（99% 陰性預測把握度）】**\n\n**資源調度行動**：僅發送年度常規健檢報告，無需投入額外醫護追蹤人力。")
+
+        except KeyError as e:
+            # 4. 終極防呆：如果模型需要我們沒準備的欄位，直接在網頁上印出抓漏報告！
+            st.error(f"⚠️ 發生特徵不匹配錯誤！\n\n你的模型需要的欄位是：`{expected_features}`\n\n但目前網頁表單缺少了：`{e}`。這代表你當初訓練模型時，可能多放了其他欄位（例如性別或抽菸），請確認！")
